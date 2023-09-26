@@ -1,12 +1,17 @@
 import argparse
 import fasttext
+import gensim
+import logging
 import numpy
 import os
 import pickle
 import sklearn
 
+from gensim.models import Word2Vec
 from sklearn.linear_model import RidgeCV
 from tqdm import tqdm
+
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -16,6 +21,7 @@ parser.add_argument(
                     'the files for all the languages/corpora'
                     )
 parser.add_argument('--language', choices=['it', 'en', 'de'], required=True)
+parser.add_argument('--model', choices=['fasttext', 'w2v'], required=True)
 args = parser.parse_args()
 
 file_path = os.path.join(
@@ -23,6 +29,18 @@ file_path = os.path.join(
                          'Lancaster_sensorimotor_norms_for_39707_words.tsv',
                          )
 assert os.path.exists(file_path)
+relevant_keys = [
+                 'Auditory.mean',
+                 'Gustatory.mean',
+                 'Haptic.mean',
+                 'Olfactory.mean',
+                 'Visual.mean',
+                 'Foot_leg.mean',
+                 'Hand_arm.mean', 
+                 'Head.mean', 
+                 'Mouth.mean', 
+                 'Torso.mean'
+                 ]
 
 norms = dict()
 with open(file_path) as i:
@@ -30,20 +48,26 @@ with open(file_path) as i:
     for l in i:
         line = l.strip().split('\t')
         if counter == 0:
-            header = line.copy()[1:]
+            header = line.copy()
             counter += 1
             continue
-        assert len(line[1:]) == len(header)
+        assert len(line) == len(header)
+        marker = False
+        for k in relevant_keys:
+            try:
+                assert float(line[header.index(k)]) < 10
+            except AssertionError:
+                #logging.info(line[0])
+                marker = True
+        if marker:
+            continue
         if len(line[0].split()) == 1:
-            norms[line[0].lower()] = line[1:]
+            norms[line[0].lower()] = list()
+            for k in relevant_keys:
+                val = float(line[header.index(k)])
+                norms[line[0].lower()].append(val)
 
-relevant_keys = [
-                 'Auditory.mean',
-                 'Gustatory.mean',
-                 'Haptic.mean',
-                 'Olfactory.mean',
-                 'Visual.mean',
-                 ]
+logging.info('number of annotated words retained for training: {}'.format(len(norms.keys())))
 
 ### reading frequencies
 ratings = dict()
@@ -57,44 +81,61 @@ for corpus in ['opensubs', 'wac']:
         else:
             ratings[k] += v
 
-print('now reducing the vocabulary')
+logging.info('now reducing the vocabulary')
 reduced_vocab = [k for k, v in ratings.items() if v > 50]
-print(len(reduced_vocab))
+logging.info(len(reduced_vocab))
 
 ### loading fasttext model
 
-print('now loading fasttext')
-ft = fasttext.load_model(os.path.join(
-                                '/',
-                                'import',
-                                'cogsci',
-                                'andrea',
-                                'dataset',
-                                'word_vectors',
-                                'en',
-                                'cc.en.300.bin',
-                                )
-                                )
+if args.model == 'fasttext':
+    logging.info('now loading fasttext')
+    model = fasttext.load_model(os.path.join(
+                                    '/',
+                                    'import',
+                                    'cogsci',
+                                    'andrea',
+                                    'dataset',
+                                    'word_vectors',
+                                    'en',
+                                    'cc.en.300.bin',
+                                    )
+                                    )
+    model_vocabulary = model.words
+if args.model == 'w2v':
+    logging.info('now loading w2v')
+    model = Word2Vec.load(os.path.join(
+                                    '/',
+                                    'import',
+                                    'cogsci',
+                                    'andrea',
+                                    'dataset',
+                                    'word_vectors',
+                                    'en',
+                                    'word2vec_en_opensubs+wac_param-mandera2017_min-count-50',
+                                    'word2vec_en_opensubs+wac_param-mandera2017_min-count-50.model',
+                                    )
+                                    ).wv
+    model_vocabulary = [w for w in model.vocab]
 
-print('now preparing the training data')
-training_words = [w for w in norms.keys() if w in ft.words]
-training_input = [ft[w] for w in training_words]
+logging.info('now preparing the training data')
+training_words = [w for w in norms.keys() if w in model_vocabulary]
+training_input = [model[w] for w in training_words]
 for vec in training_input:
     assert vec.shape == (300, )
-training_target = [numpy.array([norms[w][header.index(idx)] for idx in relevant_keys], dtype=numpy.float32) for w in training_words]
+training_target = [numpy.array(norms[w], dtype=numpy.float32) for w in training_words]
 for vec in training_target:
-    assert vec.shape == (5, )
+    assert vec.shape == (len(relevant_keys), )
 
-print('now preparing the test data')
-to_be_predicted_words = [w for w in reduced_vocab if w not in training_words and w in ft.words]
-to_be_predicted_input = [ft[w] for w in to_be_predicted_words]
+logging.info('now preparing the test data')
+to_be_predicted_words = [w for w in reduced_vocab if w not in training_words and w in model_vocabulary]
+to_be_predicted_input = [model[w] for w in to_be_predicted_words]
 for vec in to_be_predicted_input:
     assert vec.shape == (300, )
 
-print('now training...')
+logging.info('now training...')
 ridge = RidgeCV(alphas=[0.001, 0.01, 0.1, 1, 10, 100, 1000])
 ridge.fit(training_input, training_target)
-print('...finally predicting and writing to file!')
+logging.info('...finally predicting and writing to file!')
 predictions = ridge.predict(to_be_predicted_input)
 
 out_folder = os.path.join('predictions', 'sensory')
@@ -103,22 +144,24 @@ os.makedirs(out_folder, exist_ok=True)
 with open(os.path.join(out_folder, 'sensory_training_fasttext.tsv'), 'w') as o:
     o.write('word\t')
     for k in relevant_keys:
-        o.write('word\t')
+        o.write('{}\t'.format(k))
     o.write('\n')
     for k, v in zip(training_words, training_target):
         o.write('{}\t'.format(k))
         for pred in v:
             o.write('{}\t'.format(pred))
+        o.write('\n')
 
 with open(os.path.join(out_folder, 'sensory_predicted_fasttext.tsv'), 'w') as o:
     o.write('word\t')
     for k in relevant_keys:
-        o.write('word\t')
+        o.write('{}\t'.format(k))
     o.write('\n')
     for k, v in zip(to_be_predicted_words, predictions):
         o.write('{}\t'.format(k))
         for pred in v:
             o.write('{}\t'.format(pred))
+        o.write('\n')
 
 import pdb; pdb.set_trace()
 
