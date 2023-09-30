@@ -15,6 +15,11 @@ def prepare_input_output_folders(args):
         function_marker = '{}{}'.format(args.function, args.relu_base)
     else:
         function_marker = args.function
+    setup_info = '{}_{}_{}'.format(
+                 args.semantic_modality, 
+                 function_marker,
+                 args.sampling,
+                 )
 
     wac_folder = os.path.join(
                               args.corpora_path, 
@@ -26,14 +31,8 @@ def prepare_input_output_folders(args):
                            args.corpora_path, 
                            args.language, 
                            'damaged', 
-                           '{}_smaller_files_damaged_'
-                           '{}_{}_{}'.format(
-                                       identifier, 
-                                       args.semantic_modality, 
-                                       function_marker,
-                                       args.sampling,
+                           '{}_smaller_files_damaged_{}'.format(identifier, setup_info),
                                        )
-                           )
     os.makedirs(out_wac, exist_ok=True)
     ### loading opensubs
     opensubs_folder = os.path.join(
@@ -46,12 +45,7 @@ def prepare_input_output_folders(args):
                                 args.corpora_path, 
                                 args.language, 
                                 'damaged', 
-                                'opensubs_ready_damaged_'
-                                '{}_{}_{}'.format(
-                                             args.semantic_modality, 
-                                             function_marker,
-                                             args.sampling,
-                                             )
+                                'opensubs_ready_damaged_{}'.format(setup_info),
                                 )
     os.makedirs(out_opensubs, exist_ok=True)
 
@@ -69,7 +63,7 @@ def prepare_input_output_folders(args):
                                              out_opensubs, 
                                              f
                                            )] for f in os.listdir(opensubs_folder)] 
-    return file_names
+    return file_names, setup_info
 
 def read_args(mode):
     assert mode in ['damage', 'training']
@@ -100,6 +94,7 @@ def read_args(mode):
                                  '50', 
                                  '75', 
                                  '90',
+                                 '95',
                                  ], 
                         default='90',
                         )

@@ -218,7 +218,8 @@ if args.model == 'w2v':
                                     #'word_vectors',
                                     #'en',
                                     'models',
-                                    'word2vec_en_damaged_auditory_relu_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_relu_param-mandera2017_min-count-50.model'
+                                    'word2vec_en_damaged_auditory_relu-sigmoid_param-mandera2017_min-count-50.model'
                                     #'word2vec_en_damaged_auditory_raw_param-mandera2017_min-count-50.model'
                                     #'word2vec_en_damaged_auditory_relu-exponential_param-mandera2017_min-count-50.model'
                                     #'word2vec_en_damaged_auditory_logarithmic_param-mandera2017_min-count-50.model'

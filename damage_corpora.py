@@ -230,7 +230,7 @@ for k, v in tqdm(sensorimotor_scores.items()):
     word_cum_inverse_weights.append(initial_inverse)
 
 logging.info('now finally damaging the data!')
-file_names = prepare_input_output_folders(args)
+file_names, model_file = prepare_input_output_folders(args)
 
 if args.debugging:
     for f in tqdm(file_names):
