@@ -1,5 +1,7 @@
 import argparse
 import fasttext
+import gensim
+import logging
 import numpy
 import os
 import pickle
@@ -7,12 +9,16 @@ import random
 import scipy
 import sklearn
 
+from gensim.models import Word2Vec
 from scipy import stats
 from sklearn.linear_model import Ridge, RidgeCV
 from tqdm import tqdm
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--language', choices=['it', 'en', 'de'], required=True)
+parser.add_argument('--model', choices=['fasttext', 'w2v'], required=True)
 args = parser.parse_args()
 
 ### reading frequencies
@@ -54,7 +60,7 @@ with open(file_path) as i:
                 norms[word] = [line[header.index(k)]]
 
 
-print(len(norms))
+logging.info(len(norms))
 
 file_path = os.path.join(
                          'data',
@@ -67,6 +73,11 @@ relevant_keys = [
                  'Haptic.mean',
                  'Olfactory.mean',
                  'Visual.mean',
+                 'Foot_leg.mean',
+                 'Hand_arm.mean', 
+                 'Head.mean', 
+                 'Mouth.mean', 
+                 'Torso.mean'
                  ]
 overall_keys.extend(relevant_keys)
 
@@ -76,7 +87,7 @@ with open(file_path) as i:
     for l in i:
         line = l.strip().split('\t')
         if counter == 0:
-            #print(line)
+            #logging.info(line)
             header = line.copy()
             counter += 1
             continue
@@ -100,8 +111,8 @@ with open(file_path) as i:
             for k in relevant_keys:
             #if ratings[word] > 1000:
                 norms[word].append(line[header.index(k)])
-            print(overall_keys)
-            print(norms[word])
+            #logging.info(overall_keys)
+            #logging.info(norms[word])
 
 '''
 file_path = os.path.join(
@@ -136,9 +147,8 @@ with open(file_path) as i:
             #if ratings[word] > 1000:
                 norms[word].append(line[header.index(k)])
 
-print(len(norms))
+logging.info(len(norms))
 
-'''
 ### lynott
 file_path = os.path.join(
                          'data',
@@ -175,30 +185,53 @@ with open(file_path) as i:
             for k in relevant_keys:
             #if ratings[word] > 1000:
                 norms[word].append(line[header.index(k)])
-#print(len(norms))
+#logging.info(len(norms))
 
+'''
 
 norms = {k : v for k,v in norms.items() if len(v)==len(overall_keys)}
-print(len(norms))
+logging.info(len(norms))
 ### loading fasttext model
 
-print('now loading fasttext')
-ft = fasttext.load_model(os.path.join(
-                                '/',
-                                'import',
-                                'cogsci',
-                                'andrea',
-                                'dataset',
-                                'word_vectors',
-                                'en',
-                                'cc.en.300.bin',
-                                )
-                                )
+if args.model == 'fasttext':
+    logging.info('now loading fasttext')
+    model = fasttext.load_model(os.path.join(
+                                    '/',
+                                    'import',
+                                    'cogsci',
+                                    'andrea',
+                                    'dataset',
+                                    'word_vectors',
+                                    'en',
+                                    'cc.en.300.bin',
+                                    )
+                                    )
+    model_vocabulary = model.words
+if args.model == 'w2v':
+    logging.info('now loading w2v')
+    model = Word2Vec.load(os.path.join(
+                                    #'/',
+                                    #'import',
+                                    #'cogsci',
+                                    #'andrea',
+                                    #'dataset',
+                                    #'word_vectors',
+                                    #'en',
+                                    'models',
+                                    'word2vec_en_damaged_auditory_relu_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_raw_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_relu-exponential_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_logarithmic_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_sigmoid_param-mandera2017_min-count-50.model'
+                                    #'word2vec_en_damaged_auditory_relu-logarithmic_param-mandera2017_min-count-50.model'
+                                    )
+                                    ).wv
+    model_vocabulary = [w for w in model.vocab]
 
-print('now preparing the data')
-all_words = [w for w in norms.keys() if w in ft.words]
+logging.info('now preparing the training data')
+all_words = [w for w in norms.keys() if w in model_vocabulary]
 
-all_vectors = [ft[w] for w in all_words]
+all_vectors = [model[w] for w in all_words]
 for vec in all_vectors:
     assert vec.shape == (300, )
 
@@ -213,8 +246,8 @@ for vec in all_targets:
 twenty = int(len(all_words)*0.2)
 
 results = {k : list() for k in overall_keys}
-print('now training/testing...')
-for i in tqdm(range(10)):
+logging.info('now training/testing...')
+for i in tqdm(range(20)):
     test_items = random.sample(all_words, k=twenty)
     training_input = [all_vectors[v_i] for v_i, v in enumerate(all_words) if v not in test_items]
     training_target = [all_targets[v_i] for v_i, v in enumerate(all_words) if v not in test_items]
@@ -230,5 +263,6 @@ for i in tqdm(range(10)):
         preds = [pred[key_i] for pred in predictions]
         corr = scipy.stats.pearsonr(real, preds)[0]
         results[key].append(corr)
+logging.info('model : {}'.format(args.model))
 for k, v in results.items():
-    print('correlation for {}: {}'.format(k,numpy.nanmean(v)))
+    logging.info('correlation for {}: {}'.format(k,numpy.nanmean(v)))
