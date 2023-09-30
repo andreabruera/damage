@@ -11,18 +11,12 @@ from gensim.models import Word2Vec
 from sklearn.linear_model import RidgeCV
 from tqdm import tqdm
 
+from utils import read_args
+
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-                    '--corpora_path', 
-                    required=True,
-                    help='path to the folder containing '
-                    'the files for all the languages/corpora'
-                    )
-parser.add_argument('--language', choices=['it', 'en', 'de'], required=True)
-parser.add_argument('--model', choices=['fasttext', 'w2v'], required=True)
-args = parser.parse_args()
+args = read_args(mode='prediction')
+args.model = 'fasttext'
 
 file_path = os.path.join(
                          'data',

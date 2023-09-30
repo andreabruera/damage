@@ -39,9 +39,7 @@ file_names, setup_info = prepare_input_output_folders(args)
 os.makedirs('models', exist_ok=True)
 model_file = os.path.join(
                         'models', 
-                        "word2vec_{}_damaged_'\
-                        '{}_param-mandera2017_'\
-                        'min-count-50.model".format(
+                        "word2vec_{}_damaged_{}_param-mandera2017_min-count-50.model".format(
                                    args.language, 
                                    setup_info)
                         )
