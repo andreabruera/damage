@@ -129,6 +129,8 @@ def read_args(mode):
                                      'raw', 
                                      'exponential', 
                                      'relu-raw', 
+                                     'relu-raw-thresholded99', 
+                                     'relu-raw-thresholded95', 
                                      'relu-exponential', 
                                      'logarithmic', 
                                      'relu-logarithmic', 

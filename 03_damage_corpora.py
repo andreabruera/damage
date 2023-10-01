@@ -180,6 +180,10 @@ if args.function == 'relu-raw':
     threshold = numpy.quantile(list(sensorimotor_scores.values()), relu_base)
     print(threshold)
     sensorimotor_scores = {k : v if v > threshold else 0. for k, v in sensorimotor_scores.items()}
+if 'relu-raw-thresholded' in args.function:
+    threshold = numpy.quantile(list(sensorimotor_scores.values()), relu_base)
+    print(threshold)
+    sensorimotor_scores = {k : min(v, int(args.function[-2:])/100) if v > threshold else 0. for k, v in sensorimotor_scores.items()}
 if args.function == 'relu-step':
     threshold = numpy.quantile(list(sensorimotor_scores.values()), relu_base)
     print(threshold)
@@ -201,7 +205,7 @@ if 'exponential' in args.function or 'sigmoid' in args.function or 'logarithmic'
     v_max = max(sensorimotor_scores.values())
     v_min = min(sensorimotor_scores.values())
     sensorimotor_scores = {k : (v - v_min) / (v_max - v_min) for k, v in sensorimotor_scores.items()}
-if 'step' not in args.function:
+if 'step' not in args.function and 'threshold' not in args.function:
     v_max = max(sensorimotor_scores.values())
     assert v_max == 1.
 v_min = min(sensorimotor_scores.values())

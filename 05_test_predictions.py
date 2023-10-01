@@ -193,13 +193,92 @@ os.makedirs('results', exist_ok=True)
 norms = {k : v for k,v in norms.items() if len(v)==len(overall_keys)}
 logging.info(len(norms))
 
+### undamaged model
+undamaged_file = os.path.join('results', 'undamaged_{}_{}.results'.format(args.model, args.language,))
+if not os.path.exists(undamaged_file):
+    if args.model == 'fasttext':
+        logging.info('now loading fasttext')
+        model = fasttext.load_model(os.path.join(
+                                        '/',
+                                        'import',
+                                        'cogsci',
+                                        'andrea',
+                                        'dataset',
+                                        'word_vectors',
+                                        'en',
+                                        'cc.en.300.bin',
+                                        )
+                                        )
+        model_vocabulary = model.words
+    if args.model == 'w2v':
+        logging.info('now loading w2v')
+        model = Word2Vec.load(os.path.join(
+                                        '/',
+                                        'import',
+                                        'cogsci',
+                                        'andrea',
+                                        'dataset',
+                                        'word_vectors',
+                                        'en',
+                                        'word2vec_en_opensubs+wac_param-mandera2017_min-count-50',
+                                        'word2vec_en_opensubs+wac_param-mandera2017_min-count-50.model',
+                                        )
+                                        ).wv
+        model_vocabulary = [w for w in model.vocab]
+
+        logging.info('now preparing the training data')
+
+        all_words = [w for w in norms.keys() if w in model_vocabulary]
+
+        all_vectors = [model[w] for w in all_words]
+        for vec in all_vectors:
+            assert vec.shape == (300, )
+
+        all_targets = [numpy.array(norms[w], dtype=numpy.float32) for w in all_words]
+        for vec in all_targets:
+            #assert vec.shape == (7, )
+            assert vec.shape == (len(overall_keys), )
+            #assert vec.shape == (5, )
+            #assert vec.shape == (1, )
+
+        ### 100 times random combinations
+        twenty = int(len(all_words)*0.2)
+
+        results = {k : list() for k in overall_keys}
+        logging.info('now training/testing...')
+        if args.debugging:
+            iterations = 2
+        else:
+            iterations = 100
+        for i in tqdm(range(iterations)):
+            test_items = random.sample(all_words, k=twenty)
+            training_input = [all_vectors[v_i] for v_i, v in enumerate(all_words) if v not in test_items]
+            training_target = [all_targets[v_i] for v_i, v in enumerate(all_words) if v not in test_items]
+            test_input = [all_vectors[all_words.index(v)] for v in test_items]
+            test_target = [all_targets[all_words.index(v)] for v in test_items]
+            ridge = RidgeCV(alphas=[0.001, 0.01, 0.1, 1, 10, 100, 1000])
+            #ridge = Ridge()
+            ridge.fit(training_input, training_target)
+            predictions = ridge.predict(test_input)
+            for key_i, key in enumerate(overall_keys):
+                ### computing correlations
+                real = [target[key_i] for target in test_target]
+                preds = [pred[key_i] for pred in predictions]
+                corr = scipy.stats.pearsonr(real, preds)[0]
+                results[key].append(corr)
+        with open(undamaged_file, 'w') as o:
+            o.write('Pearson correlation results for Brysbaert concreteness and perceptual strength norms (80-20 splits in 100 iterations of monte-carlo cross-validation) for the undamaged {} {}\n'.format(args.model, args.language))
+            o.write('number of words retained: {} out of {}\n'.format(len(all_words), len(norms.keys())))
+            for k, v in results.items():
+                o.write('{}\t{}\n'.format(k, numpy.average(v)))
+
 ### loading models
 
 relu_bases=[
          #'50', 
          #'75', 
-         '90',
-         #'95',
+         #'90',
+         '95',
          ] 
 sampling=[
          'random', 
@@ -214,7 +293,7 @@ functions=[
          'relu-exponential', 
          #'logarithmic', 
          #'relu-logarithmic', 
-         #'relu-sigmoid', 
+         'relu-sigmoid', 
          #'relu-step',
          ]
 semantic_modalities = [
