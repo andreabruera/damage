@@ -6,6 +6,7 @@ import numpy
 import os
 import pickle
 import random
+import re
 import sklearn
 import stop_words
 import string

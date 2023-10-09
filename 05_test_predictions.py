@@ -2,19 +2,30 @@ import argparse
 import fasttext
 import gensim
 import logging
+import matplotlib
 import numpy
 import os
 import pickle
 import random
 import scipy
 import sklearn
+import spacy
 
 from gensim.models import Word2Vec
+from matplotlib import font_manager, pyplot
 from scipy import stats
 from sklearn.linear_model import Ridge, RidgeCV
 from tqdm import tqdm
 
 from utils import prepare_input_output_folders, read_args
+
+# Using Helvetica as a font
+font_folder = '/import/cogsci/andrea/dataset/fonts/'
+font_dirs = [font_folder, ]
+font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+for p in font_files:
+    font_manager.fontManager.addfont(p)
+matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
@@ -57,7 +68,6 @@ with open(file_path) as i:
             for k in relevant_keys:
             #if ratings[word] > 1000:
                 norms[word] = [line[header.index(k)]]
-
 
 logging.info(len(norms))
 
@@ -270,7 +280,8 @@ if not os.path.exists(undamaged_file):
             o.write('Pearson correlation results for Brysbaert concreteness and perceptual strength norms (80-20 splits in 100 iterations of monte-carlo cross-validation) for the undamaged {} {}\n'.format(args.model, args.language))
             o.write('number of words retained: {} out of {}\n'.format(len(all_words), len(norms.keys())))
             for k, v in results.items():
-                o.write('{}\t{}\n'.format(k, numpy.average(v)))
+                for val in v:
+                    o.write('{}\t{}\n'.format(k, val))
 
 ### loading models
 
@@ -289,11 +300,13 @@ functions=[
          #'sigmoid', 
          #'raw', 
          #'exponential', 
-         'relu-raw', 
-         'relu-exponential', 
+         #'relu-raw-thresholded99', 
+         'relu-raw-thresholded90', 
+         #'relu-raw', 
+         #'relu-exponential', 
          #'logarithmic', 
          #'relu-logarithmic', 
-         'relu-sigmoid', 
+         #'relu-sigmoid', 
          #'relu-step',
          ]
 semantic_modalities = [
@@ -313,6 +326,7 @@ for sem_mod in semantic_modalities:
                 args.semantic_modality = sem_mod
 
                 _, setup_info = prepare_input_output_folders(args, mode='plotting')
+                print(setup_info)
 
                 ### loading fasttext model
 
@@ -338,8 +352,7 @@ for sem_mod in semantic_modalities:
                                                    args.language, 
                                                    setup_info)
                                         )
-                    if not os.path.exists(model_file):
-                        continue
+                    assert os.path.exists(model_file)
                     model = Word2Vec.load(os.path.join(
                                                     #'/',
                                                     #'import',
@@ -394,8 +407,135 @@ for sem_mod in semantic_modalities:
                             preds = [pred[key_i] for pred in predictions]
                             corr = scipy.stats.pearsonr(real, preds)[0]
                             results[key].append(corr)
-                    with open(os.path.join('results', '{}_{}_{}.results'.format(args.model, args.language, setup_info)), 'w') as o:
-                        o.write('Pearson correlation results for Brysbaert concreteness and perceptual strength norms (80-20 splits in 100 iterations of monte-carlo cross-validation) for {}, {}, {}\n'.format(args.model, args.language, setup_info.replace('_', ' ')))
-                        o.write('number of words retained: {} out of {}\n'.format(len(all_words), len(norms.keys())))
+                    out_file = '{}_{}_{}'.format(
+                                     args.model, 
+                                     args.language, 
+                                     setup_info,
+                                     )
+                    with open(os.path.join(
+                                     'results', 
+                                     '{}.results'.format(out_file)
+                                     ), 'w') as o:
+                        o.write('Pearson correlation results '\
+                                'for Brysbaert concreteness and '\
+                                'perceptual strength norms '\
+                                '(80-20 splits in 100 iterations of '\
+                                'monte-carlo cross-validation) '\
+                                'for {}, {}, {}\n'.format(
+                                    args.model, 
+                                    args.language, 
+                                    setup_info.replace('_', ' ')
+                                    )
+                                )
+                        o.write('number of words retained: '\
+                                '{} out of {}\n'.format(
+                                                 len(all_words), 
+                                                 len(norms.keys())
+                                                 )
+                                )
                         for k, v in results.items():
                             o.write('{}\t{}\n'.format(k, numpy.average(v)))
+
+                    data = [
+                            ('undamaged_w2v_en.results', 'undamaged'),
+                            #('w2v_en_auditory_relu-raw-thresholded9095_random.results', 'damaged'),
+                            ]
+                    plot_results = dict()
+
+                    for file_name, key in data:
+                        ### reading unadamaged scores
+                        results[key] = dict()
+                        with open(os.path.join('results', file_name)) as i:
+                            counter = 0
+                            for l in i:
+                                if counter < 2:
+                                    counter += 1
+                                    continue
+                                line = l.strip().split('\t')
+                                try:
+                                    plot_results[key][line[0]].append(float(line[1]))
+                                except KeyError:
+                                    plot_results[key][line[0]] = [float(line[1])]
+                    plot_results['damaged'] = results.copy()
+
+                    x_labels = list(plot_results[key].keys())
+                    ### sorting x labels
+                    to_be_sorted = [(abs(numpy.average(plot_results['undamaged'][k])-numpy.average(plot_results['damaged'][k])), k) for k in x_labels]
+                    x_labels = [v[1] for v in sorted(to_be_sorted, key=lambda item : item[0], reverse=True)]
+                    colors = {
+                              'undamaged' : 'teal',
+                              'damaged' : 'goldenrod',
+                              }
+                    scatters = {
+                              'undamaged' : 'mediumturquoise',
+                              'damaged' : 'darkgoldenrod',
+                              }
+                    corrections = {
+                              'undamaged' : -.2,
+                              'damaged' : .2,
+                              }
+
+                    fig, ax = matplotlib.pyplot.subplots(
+                                                figsize=(20, 10), 
+                                                constrained_layout=True,
+                                                )
+                    '''
+                    for k, v in results.items():
+                        bar_ys = [numpy.average(v[key]) for key in x_labels]
+                        ax.bar(
+                                [x+corrections[k] for x in range(len(bar_ys))], 
+                                height=bar_ys, 
+                                color=colors[k], 
+                                label=k,
+                                alpha=0.8,
+                                edgecolor='lightgrey',
+                                width=.3,
+                                )
+                        ### scatters
+                        ax.scatter(
+                                   [x_i+corrections[k]+(random.choice(range(-5,5))*0.025) for x_i, x in enumerate(x_labels) for val in v[x]],
+                                   [val for x in x_labels for val in v[x]],
+                                   color=scatters[k],
+                                   edgecolors='white',
+                                   )
+                    '''
+                    bar_ys = [numpy.average(plot_results['undamaged'][key])-numpy.average(plot_results['damaged'][key]) for key in x_labels]
+                    ax.bar(
+                            #[
+                            #x+corrections[k] for x in range(len(bar_ys))], 
+                            range(len(bar_ys)),
+                            height=bar_ys, 
+                            color=colors['undamaged'], 
+                            label='damaged model',
+                            alpha=0.8,
+                            edgecolor='lightgrey',
+                            #width=.3,
+                            zorder=1
+                            )
+                    ### scatters
+                    scatter_ys = [numpy.array(plot_results['undamaged'][key])-numpy.array(plot_results['damaged'][key]) for key in x_labels]
+                    ax.scatter(
+                               [x_i+(random.choice(range(-5,5))*0.05) for x_i, x in enumerate(x_labels) for val in scatter_ys[x_i]],
+                               scatter_ys,
+                               color=scatters['undamaged'],
+                               edgecolors='white',
+                               zorder=2
+                               )
+                    ax.set_title(out_file.replace('_', ' '), fontsize=30, fontweight='bold')
+                    ax.legend(fontsize=25)
+                    #ax.set_ylim(ymin=.4, ymax=1.)
+                    ax.set_xticks(range(len(x_labels)))
+                    ax.set_xticklabels(
+                                       labels=[l.replace('.mean', '').replace('_', ' ') for l in x_labels],
+                                       rotation=45,
+                                       fontsize=25,
+                                       fontweight='bold'
+                                       )
+                    #ax.set_ylabel('Cross-validation pearson correlation', fontsize=20)
+                    ax.set_ylabel('Damage effect ($\Delta$ pearson correlation evaluation)', fontsize=25, fontweight='bold')
+                    pyplot.savefig(os.path.join(
+                                          'results', 
+                                          '{}.jpg'.format(out_file), 
+                                          dpi=300
+                                          )
+                                          )
