@@ -109,10 +109,13 @@ with open(file_path) as i:
         ### checking because some lines contain errors
         marker = False
         for k in relevant_keys:
-            try:
-                assert float(line[header.index(k)]) <= 5
-            except AssertionError:
-                marker = True
+            #try:
+            #    assert float(line[header.index(k)]) <= 5
+            #except AssertionError:
+            #    marker = True
+            if float(line[header.index(k)]) > 10:
+                line[header.index(k)] = '.{}'.format(line[header.index(k)])
+            assert float(line[header.index(k)]) < 10
         if marker:
             continue
 
@@ -301,7 +304,8 @@ functions=[
          #'raw', 
          #'exponential', 
          #'relu-raw-thresholded99', 
-         'relu-raw-thresholded90', 
+         #'relu-raw-thresholded90', 
+         'relu-raw-thresholded95', 
          #'relu-raw', 
          #'relu-exponential', 
          #'logarithmic', 
@@ -444,7 +448,7 @@ for sem_mod in semantic_modalities:
 
                     for file_name, key in data:
                         ### reading unadamaged scores
-                        results[key] = dict()
+                        plot_results[key] = dict()
                         with open(os.path.join('results', file_name)) as i:
                             counter = 0
                             for l in i:
@@ -536,6 +540,6 @@ for sem_mod in semantic_modalities:
                     pyplot.savefig(os.path.join(
                                           'results', 
                                           '{}.jpg'.format(out_file), 
+                                          ),
                                           dpi=300
-                                          )
                                           )
