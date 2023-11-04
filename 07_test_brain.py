@@ -19,7 +19,40 @@ from tqdm import tqdm
 
 from utils import prepare_input_output_folders, read_args
 
-def test(dataset, data, out_file, model):
+def rsa_test(dataset, data, out_file, model):
+    dataset_results = dict()
+
+    words = relevant_dataset_words[dataset]
+    for w in words:
+        assert w in model.vocab
+    sim_model = {k : [1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in words] for k in words}
+
+    ### leave-one-out
+    for test_i, test_item in tqdm(enumerate(words)):
+        item_results = list()
+        training_input = [model[w] for w in words if w!=test_item]
+        test_input = model[test_item]
+        training_input = [numpy.delete(sim_model[w], test_i, axis=0) for w in words if w!=test_item]
+        test_input = numpy.delete(sim_model[w], test_i, axis=0)
+        all_training_target = [numpy.delete(data[w], test_i, axis=1) for w in words if w!=test_item]
+        all_test_target = numpy.delete(data[w], test_i, axis=1)
+        all_ranking_targets = [numpy.delete(data[w], test_i, axis=1) for w in words]
+        for s in range(all_test_target.shape[0]):
+            training_target = [brain[s, :] for brain in all_training_target]
+            test_target = all_test_target[s, :]
+            corr = scipy.stats.pearsonr(test_input, test_target)[0]
+            item_results.append(corr)
+        dataset_results[test_item] = item_results
+
+    with open(out_file, 'w') as o:
+        o.write('word\tresults\n')
+        for k, v in dataset_results.items():
+            o.write('{}\t'.format(k))
+            for val in v:
+                o.write('{}\t'.format(val))
+            o.write('\n')
+
+def ridge_test(dataset, data, out_file, model):
     dataset_results = dict()
 
     words = relevant_dataset_words[dataset]
@@ -200,14 +233,15 @@ if args.model == 'w2v':
 for dataset, data in datasets.items():
     undamaged_file = os.path.join(
                             'brain_results', 
-                            '{}_undamaged_{}_{}.results'.format(
+                            'rsa_{}_undamaged_{}_{}.results'.format(
                                    dataset, 
                                    args.model, 
                                    args.language,
                                    )
                             )
     if not os.path.exists(undamaged_file):
-        test(dataset, data, undamaged_file, model)
+        #ridge_test(dataset, data, undamaged_file, model)
+        rsa_test(dataset, data, undamaged_file, model)
 
 for dataset, data in datasets.items():
 
@@ -230,6 +264,7 @@ for dataset, data in datasets.items():
              #'exponential', 
              #'relu-raw-thresholded99', 
              'relu-raw-thresholded90', 
+             #'relu-raw-thresholded85', 
              #'relu-raw-thresholded95', 
              #'relu-raw', 
              #'relu-exponential', 
@@ -296,11 +331,12 @@ for dataset, data in datasets.items():
                                                         ).wv
                     out_file = os.path.join(
                                      'brain_results', 
-                                     '{}_{}_{}_{}.results'.format(
+                                     'rsa_{}_{}_{}_{}.results'.format(
                                      dataset,
                                      args.model, 
                                      args.language, 
                                      setup_info,
                                      )
                                      )
-                    test(dataset, data, out_file, model)
+                    #ridge_test(dataset, data, out_file, model)
+                    rsa_test(dataset, data, out_file, model)

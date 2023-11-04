@@ -55,6 +55,7 @@ with open(file_path) as i:
 ### open results
 words = list()
 undamaged = list()
+#with open(os.path.join('brain_results', 'fernandino2_undamaged_w2v_en.results')) as i:
 with open(os.path.join('brain_results', 'fernandino1_undamaged_w2v_en.results')) as i:
     for l_i, l in enumerate(i):
         if l_i == 0:
@@ -68,7 +69,7 @@ undamaged = numpy.array(undamaged, dtype=numpy.float64)
 dam_words = list()
 damaged = list()
 #with open(os.path.join('brain_results', 'fernandino1_w2v_en_auditory_relu-raw95_random.results')) as i:
-with open(os.path.join('brain_results', 'fernandino1_w2v_en_auditory_relu-raw-thresholded9095_random.results')) as i:
+with open(os.path.join('brain_results', 'fernandino1_w2v_en_auditory_relu-raw-thresholded8595_random.results')) as i:
     for l_i, l in enumerate(i):
         if l_i == 0:
             continue
@@ -77,10 +78,10 @@ with open(os.path.join('brain_results', 'fernandino1_w2v_en_auditory_relu-raw-th
         damaged.append(line[1:])
 damaged = numpy.array(damaged, dtype=numpy.float64)
 assert dam_words == words
-#high_auditory = [w_i for w_i, w in enumerate(words) if norms[w][relevant_keys.index('Auditory.mean')]>2.5]
-#high_auditory = [w_i for w_i, w in enumerate(words) if norms[w][relevant_keys.index('Visual.mean')]>=4.]
+#high_auditory = [w_i for w_i, w in enumerate(words) if norms[w][relevant_keys.index('Auditory.mean')]>3.]
+high_auditory = [w_i for w_i, w in enumerate(words) if norms[w][relevant_keys.index('Visual.mean')]>=3.]
 #high_auditory = [w_i for w_i, w in enumerate(words) if norms[w][relevant_keys.index('Mouth.mean')]>=4.]
-high_auditory = [w_i for w_i, w in enumerate(words)]
+#high_auditory = [w_i for w_i, w in enumerate(words)]
 diff = scipy.stats.wilcoxon(
                             numpy.average(damaged[high_auditory, :], axis=0), 
                             numpy.average(undamaged[high_auditory, :], axis=0), 
