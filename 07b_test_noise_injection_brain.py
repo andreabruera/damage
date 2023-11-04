@@ -25,7 +25,20 @@ def rsa_test(dataset, data, out_file, model):
     words = relevant_dataset_words[dataset]
     for w in words:
         assert w in model.vocab
-    sim_model = {k : [1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in words] for k in words}
+    mean = numpy.average([model[w] for w in words])
+    std = numpy.std([model[w] for w in words])
+    ### noisy model
+    noisy_model = {w : numpy.average(
+                                     [model[w], 
+                                     numpy.random.default_rng().normal(
+                                                                       loc=mean, 
+                                                                       scale=std, 
+                                                                       size=model[words[0]].shape,
+                                                                       )*(
+                                                                          norms[w][relevant_keys.index('Auditory.mean')])
+                                     ], axis=0) for w in words}
+
+    sim_model = {k : [1 - scipy.spatial.distance.cosine(noisy_model[k], noisy_model[k_two]) for k_two in words] for k in words}
 
     ### leave-one-out
     for test_i, test_item in tqdm(enumerate(words)):
@@ -155,7 +168,7 @@ with open(file_path) as i:
         if marker:
             continue
         for k in relevant_keys:
-            norms[word].append(line[header.index(k)])
+            norms[word].append(float(line[header.index(k)]))
 
 ### reading datasets
 dataset_words = {
@@ -245,98 +258,16 @@ for dataset, data in datasets.items():
 
 for dataset, data in datasets.items():
 
+    ### adding noise into model
+
     ### loading models
 
-    relu_bases=[
-             #'50', 
-             #'75', 
-             #'90',
-             '95',
-             ] 
-    sampling=[
-             'random', 
-             #'inverse', 
-             #'pos',
-             ]
-    functions=[
-             #'sigmoid', 
-             'raw', 
-             'exponential', 
-             #'relu-raw-thresholded99', 
-             'relu-raw-thresholded90', 
-             'relu-raw-thresholded85', 
-             #'relu-raw-thresholded95', 
-             #'relu-raw', 
-             #'relu-exponential', 
-             #'logarithmic', 
-             #'relu-logarithmic', 
-             #'relu-sigmoid', 
-             #'relu-step',
-             ]
-    semantic_modalities = [
-                        'auditory',
-                        #'action',
-                        ]
-    for sem_mod in semantic_modalities:
-        for func in functions:
-            for relu_base in relu_bases:
-                if 'relu' not in func and relu_base != '50':
-                    continue
-                for s in sampling:
-
-                    args.function = func
-                    args.relu_base = relu_base
-                    args.sampling = s
-                    args.semantic_modality = sem_mod
-
-                    _, setup_info = prepare_input_output_folders(args, mode='plotting')
-                    print(setup_info)
-
-                    ### loading fasttext model
-
-                    if args.model == 'fasttext':
-                        logging.info('now loading fasttext')
-                        model = fasttext.load_model(os.path.join(
-                                                        '/',
-                                                        'import',
-                                                        'cogsci',
-                                                        'andrea',
-                                                        'dataset',
-                                                        'word_vectors',
-                                                        'en',
-                                                        'cc.en.300.bin',
-                                                        )
-                                                        )
-                        model_vocabulary = model.words
-                    if args.model == 'w2v':
-                        logging.info('now loading w2v')
-                        model_file = os.path.join(
-                                            'models', 
-                                            "word2vec_{}_damaged_{}_param-mandera2017_min-count-50.model".format(
-                                                       args.language, 
-                                                       setup_info)
-                                            )
-                        assert os.path.exists(model_file)
-                        model = Word2Vec.load(os.path.join(
-                                                        #'/',
-                                                        #'import',
-                                                        #'cogsci',
-                                                        #'andrea',
-                                                        #'dataset',
-                                                        #'word_vectors',
-                                                        #'en',
-                                                        #'models',
-                                                        model_file
-                                                        )
-                                                        ).wv
-                    out_file = os.path.join(
-                                     'brain_results', 
-                                     'rsa_{}_{}_{}_{}.results'.format(
-                                     dataset,
-                                     args.model, 
-                                     args.language, 
-                                     setup_info,
-                                     )
-                                     )
-                    #ridge_test(dataset, data, out_file, model)
-                    rsa_test(dataset, data, out_file, model)
+    out_file = os.path.join(
+                     'brain_results', 
+                     'rsa_{}_{}_{}_noise_injection.results'.format(
+                     dataset,
+                     args.model, 
+                     args.language, 
+                     )
+                     )
+    rsa_test(dataset, data, out_file, model)
