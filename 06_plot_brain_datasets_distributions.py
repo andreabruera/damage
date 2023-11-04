@@ -52,9 +52,9 @@ with open(file_path) as i:
 
 ### reading datasets
 datasets = {
-            #'mitchell' : list(), 
-            #'pereira' : list(),
-            'fernandino' : list(),
+            'mitchell' : list(), 
+            'pereira' : list(),
+            'fernandino1' : list(),
             'fernandino2' : list(),
             }
 for d in datasets.keys():
@@ -73,15 +73,16 @@ for d, v in datasets.items():
 
 stats_datasets = {k : [val for val in v if val in norms.keys()] for k, v in datasets.items()}
 
-os.makedirs('brain_plots', exist_ok=True)
+folder = os.path.join('brain_plots', 'stats')
+os.makedirs(folder, exist_ok=True)
 
 ### plot datasets
-for dataset, data in statsdatasets.items():
+for dataset, data in stats_datasets.items():
     fig, ax = pyplot.subplots(figsize=(21,10), constrained_layout=True)
     ys = [[norms[d][k_i] for d in data] for k_i, k in enumerate(relevant_keys)]
     ax.violinplot(ys)
     ax.set_xticks([x+1. for x in range(len(relevant_keys))])
     ax.set_xticklabels(relevant_keys, fontsize=23, rotation=45, ha='center')
-    pyplot.savefig(os.path.join('brain_plots', '{}.jpg'.format(dataset)))
+    pyplot.savefig(os.path.join(folder, '{}.jpg'.format(dataset)))
     pyplot.clf()
     pyplot.close()
