@@ -139,8 +139,8 @@ for damage in damages:
             mod_xs = [relevant_norms[i] for i in sorted_idxs]
             mod_dam_ys = [numpy.average(damaged[i, :]) for i in sorted_idxs]
             mod_undam_ys = [numpy.average(undamaged[i, :]) for i in sorted_idxs]
-            ax.plot(mod_xs, mod_dam_ys, color=plot_colors[mod], label=mod.split('.')[0])
-            #ax.plot(mod_xs, mod_undam_ys, color=plot_colors[mod], ls='-.')
+            #ax.plot(mod_xs, mod_dam_ys, color=plot_colors[mod], label=mod.split('.')[0])
+            ax.plot(mod_xs, mod_undam_ys, color=plot_colors[mod], ls='-.')
         ax.set_xlim(left=0., right=5.)
         ax.legend()
         file_out = os.path.join(plot_folder, 'brain_rsa_fernandino{}_{}.jpg'.format(dataset, damage))
