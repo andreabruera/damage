@@ -290,9 +290,9 @@ if not os.path.exists(undamaged_file):
 
 relu_bases=[
          #'50', 
-         #'75', 
+         '75', 
          #'90',
-         '95',
+         #'95',
          ] 
 sampling=[
          'random', 
@@ -306,9 +306,9 @@ functions=[
          #'relu-raw-thresholded99', 
          #'relu-raw-thresholded90', 
          #'relu-raw-thresholded95', 
-         'relu-raw-thresholded85', 
-         #'relu-raw', 
-         #'relu-exponential', 
+         #'relu-raw-thresholded85', 
+         'relu-raw', 
+         'relu-exponential', 
          #'logarithmic', 
          #'relu-logarithmic', 
          #'relu-sigmoid', 

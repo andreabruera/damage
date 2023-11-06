@@ -1,13 +1,13 @@
 Pearson correlation results for Brysbaert concreteness and perceptual strength norms (80-20 splits in 100 iterations of monte-carlo cross-validation) for w2v, en, auditory relu-exponential75 random
-number of words retained: 29262 out of 33515
-Conc.M	0.7088927027674714
-Auditory.mean	0.6085051759666104
-Gustatory.mean	0.672447044491409
-Haptic.mean	0.6217012402077665
-Olfactory.mean	0.6045123735644083
-Visual.mean	0.5381201348741054
-Foot_leg.mean	0.5647295014610215
-Hand_arm.mean	0.5551623132388359
-Head.mean	0.45414359490360434
-Mouth.mean	0.5436211239547416
-Torso.mean	0.5303624885440114
+number of words retained: 31974 out of 36807
+Conc.M	0.7079688292886943
+Auditory.mean	0.5993905897924383
+Gustatory.mean	0.6718785851091017
+Haptic.mean	0.6192142635990195
+Olfactory.mean	0.6012892494694227
+Visual.mean	0.5375533264011721
+Foot_leg.mean	0.5635146183141608
+Hand_arm.mean	0.5507737423468549
+Head.mean	0.4519364307410261
+Mouth.mean	0.5424253823983296
+Torso.mean	0.5284580215775757

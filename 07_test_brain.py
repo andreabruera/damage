@@ -19,13 +19,17 @@ from tqdm import tqdm
 
 from utils import prepare_input_output_folders, read_args
 
-def rsa_test(dataset, data, out_file, model):
+def rsa_test(dataset, all_data, out_file, model):
     dataset_results = dict()
 
-    words = relevant_dataset_words[dataset]
-    for w in words:
-        assert w in model.vocab
+    all_words = relevant_dataset_words[dataset]
+    #for w in words:
+    #    assert w in model.vocab
+    missing_words = [w for w in all_words if w not in model.vocab]
+    print('missing {} words'.format(len(missing_words)))
+    words = [w for w in all_words if w in model.vocab]
     sim_model = {k : [1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in words] for k in words}
+    data = {k : [[val for val, w in zip(vec, all_words) if w not in missing_words] for vec in v] for k, v in all_data.items() if k in words}
 
     ### leave-one-out
     for test_i, test_item in tqdm(enumerate(words)):
@@ -33,9 +37,9 @@ def rsa_test(dataset, data, out_file, model):
         training_input = [model[w] for w in words if w!=test_item]
         test_input = model[test_item]
         training_input = [numpy.delete(sim_model[w], test_i, axis=0) for w in words if w!=test_item]
-        test_input = numpy.delete(sim_model[w], test_i, axis=0)
+        test_input = numpy.delete(sim_model[test_item], test_i, axis=0)
         all_training_target = [numpy.delete(data[w], test_i, axis=1) for w in words if w!=test_item]
-        all_test_target = numpy.delete(data[w], test_i, axis=1)
+        all_test_target = numpy.delete(data[test_item], test_i, axis=1)
         all_ranking_targets = [numpy.delete(data[w], test_i, axis=1) for w in words]
         for s in range(all_test_target.shape[0]):
             training_target = [brain[s, :] for brain in all_training_target]
@@ -249,9 +253,9 @@ for dataset, data in datasets.items():
 
     relu_bases=[
              #'50', 
-             #'75', 
+             '75', 
              #'90',
-             '95',
+             #'95',
              ] 
     sampling=[
              'random', 
@@ -260,14 +264,14 @@ for dataset, data in datasets.items():
              ]
     functions=[
              #'sigmoid', 
-             'raw', 
-             'exponential', 
+             #'raw', 
+             #'exponential', 
              #'relu-raw-thresholded99', 
-             'relu-raw-thresholded90', 
-             'relu-raw-thresholded85', 
+             #'relu-raw-thresholded90', 
+             #'relu-raw-thresholded85', 
              #'relu-raw-thresholded95', 
-             #'relu-raw', 
-             #'relu-exponential', 
+             'relu-raw', 
+             'relu-exponential', 
              #'logarithmic', 
              #'relu-logarithmic', 
              #'relu-sigmoid', 
@@ -280,8 +284,8 @@ for dataset, data in datasets.items():
     for sem_mod in semantic_modalities:
         for func in functions:
             for relu_base in relu_bases:
-                if 'relu' not in func and relu_base != '50':
-                    continue
+                #if 'relu' not in func and relu_base != '50':
+                #    continue
                 for s in sampling:
 
                     args.function = func
