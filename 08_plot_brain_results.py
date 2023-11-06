@@ -118,10 +118,10 @@ for damage in damages:
         fig, ax = pyplot.subplots(constrained_layout=True)
         plot_modalities = [
                  'Auditory.mean',
-                 'Gustatory.mean',
-                 'Haptic.mean',
-                 'Olfactory.mean',
-                 'Visual.mean',
+                 #'Gustatory.mean',
+                 #'Haptic.mean',
+                 #'Olfactory.mean',
+                 #'Visual.mean',
                  'Mouth.mean', 
                  ]
         plot_colors = {
