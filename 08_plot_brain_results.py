@@ -24,6 +24,18 @@ relevant_keys = [
                  'Mouth.mean', 
                  'Torso.mean'
                  ]
+plot_colors = {
+                 'Auditory' : 'teal',
+                 'Gustatory' : 'orange',
+                 'Haptic' : 'goldenrod',
+                 'Olfactory' : 'grey',
+                 'Visual' : 'magenta',
+                 'Foot' : 'darkorchid',
+                 'Hand' : 'peru', 
+                 'Head' : 'royalblue', 
+                 'Mouth' : 'coral', 
+                 'Torso' : 'turquoise',
+                 }
 
 norms = dict()
 with open(file_path) as i:
@@ -122,7 +134,7 @@ for damage in damages:
             mod_xs = list(range(5))
             mod_dam_ys = numpy.nanmean(dam_results, axis=1)
             mod_undam_ys = numpy.nanmean(undam_results, axis=1)
-            ax.plot(mod_xs, mod_dam_ys, color='orange', label='damaged {}'.format(case))
+            ax.plot(mod_xs, mod_dam_ys, plot_colors[case], label='damaged {}'.format(case))
             ax.plot(mod_xs, mod_undam_ys, color='grey', ls='-.', label='undamaged')
             ax.set_xlim(left=-.5, right=4.5)
             ax.set_ylim(bottom=0.8, top=0.95)
