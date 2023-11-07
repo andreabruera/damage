@@ -71,46 +71,66 @@ for damage in damages:
     print('\n')
     for dataset in ['1', '2']:
         ### open results
+        dam_cases = list()
         dam_results = list()
         with open(os.path.join('brain_results', 'bins_rsa_fernandino{}_w2v_en_{}.results'.format(dataset, damage))) as i:
             for l_i, l in enumerate(i):
                 if l_i == 0:
                     continue
                 line = l.strip().split('\t')
-                dam_results.append(numpy.array(line[1:], dtype=numpy.float32))
+                dam_cases.append(line[0].split('_')[0])
+                if 'nan' in line[1:]:
+                    dam_results.append(numpy.array([numpy.nan for _ in line[1:]]))
+                else:
+                    dam_results.append(numpy.array(line[1:], dtype=numpy.float32))
+        all_dam = {k : list() for k in set(dam_cases)}
+        for case, res in zip(dam_cases, dam_results):
+            all_dam[case].append(res)
         ### open results
+        undam_cases = list()
         undam_results = list()
         with open(os.path.join('brain_results', 'bins_rsa_fernandino{}_undamaged_w2v_en.results'.format(dataset))) as i:
             for l_i, l in enumerate(i):
                 if l_i == 0:
                     continue
                 line = l.strip().split('\t')
-                undam_results.append(numpy.array(line[1:], dtype=numpy.float32))
-        diff = scipy.stats.ttest_rel(
-                                    numpy.average(dam_results, axis=0), 
-                                    numpy.average(undam_results, axis=0), 
-                                    alternative='less'
-                                    #alternative='greater'
-                                    )
-        print(damage)
-        print(dataset)
-        print(diff)
-        ### plotting
-        fig, ax = pyplot.subplots(constrained_layout=True)
-        mod_xs = list(range(5))
-        mod_dam_ys = numpy.average(dam_results, axis=1)
-        mod_undam_ys = numpy.average(undam_results, axis=1)
-        ax.plot(mod_xs, mod_dam_ys, color='orange', label='damaged auditory')
-        ax.plot(mod_xs, mod_undam_ys, color='grey', ls='-.', label='undamaged')
-        ax.set_xlim(left=-.5, right=4.5)
-        ax.set_xticks(mod_xs)
-        ax.set_xticklabels(['0-1', '1-2', '2-3', '3-4', '4-5'])
-        ax.legend()
-        file_out = os.path.join(plot_folder, 'bins_brain_rsa_fernandino{}_{}.jpg'.format(dataset, damage))
-        print(file_out)
-        pyplot.savefig(file_out)
-        pyplot.clf()
-        pyplot.close()
-        
+                undam_cases.append(line[0].split('_')[0])
+                if 'nan' in line[1:]:
+                    undam_results.append(numpy.array([numpy.nan for _ in line[1:]]))
+                else:
+                    undam_results.append(numpy.array(line[1:], dtype=numpy.float32))
+        all_undam = {k : list() for k in set(undam_cases)}
+        for case, res in zip(undam_cases, undam_results):
+            all_undam[case].append(res)
 
-import pdb; pdb.set_trace()
+        for case, dam_results in all_dam.items():
+            undam_results = all_undam[case]
+            try:
+                diff = scipy.stats.ttest_rel(
+                                            numpy.nanmean(dam_results, axis=0), 
+                                            numpy.nanmean(undam_results, axis=0), 
+                                            alternative='less'
+                                            #alternative='greater'
+                                            )
+                print(damage)
+                print(dataset)
+                print(diff)
+            except ValueError:
+                import pdb; pdb.set_trace()
+            ### plotting
+            fig, ax = pyplot.subplots(constrained_layout=True)
+            mod_xs = list(range(5))
+            mod_dam_ys = numpy.nanmean(dam_results, axis=1)
+            mod_undam_ys = numpy.nanmean(undam_results, axis=1)
+            ax.plot(mod_xs, mod_dam_ys, color='orange', label='damaged {}'.format(case))
+            ax.plot(mod_xs, mod_undam_ys, color='grey', ls='-.', label='undamaged')
+            ax.set_xlim(left=-.5, right=4.5)
+            ax.set_ylim(bottom=0.8, top=0.95)
+            ax.set_xticks(mod_xs)
+            ax.set_xticklabels(['0-1', '1-2', '2-3', '3-4', '4-5'])
+            ax.legend()
+            file_out = os.path.join(plot_folder, 'bins_brain_rsa_fernandino{}_{}_{}.jpg'.format(dataset, case, damage))
+            print(file_out)
+            pyplot.savefig(file_out)
+            pyplot.clf()
+            pyplot.close()

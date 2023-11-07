@@ -20,6 +20,9 @@ from tqdm import tqdm
 from utils import prepare_input_output_folders, read_args
 
 def bins_rsa_test(dataset, all_data, out_file, model):
+
+    n_items = 32
+    n_items = 8
     dataset_results = dict()
 
     all_words = relevant_dataset_words[dataset]
@@ -29,16 +32,22 @@ def bins_rsa_test(dataset, all_data, out_file, model):
     print('missing {} words'.format(len(missing_words)))
     words = [w for w in all_words if w in model.vocab]
     bins = {'{}_{}'.format(case.split('.')[0], i) : list() for i in range(5) for case in relevant_keys}
-    counter = 0
 
     for case_i, case in enumerate(relevant_keys):
+        print(case)
         case = case.split('.')[0]
+        counter = 0
         for beg, end in tqdm([(0., 1.), (1, 2), (2, 3), (3, 4), (4, 5)]):
             bin_words = [w for w in words if norms[w][case_i]>=beg and norms[w][case_i]<=end]
+            if len(bin_words) < n_items:
+                #print('nan')
+                bins['{}_{}'.format(case, counter)] = [numpy.nan for s in range(all_data[words[0]].shape[0])]
+                counter += 1
+                continue
             bin_results = list()
-            for _ in range(10):
+            for _ in range(100):
                 iter_results = list()
-                current_bin_words = random.sample(bin_words, k=32)
+                current_bin_words = random.sample(bin_words, k=n_items)
                 current_bin_idxs = [all_words.index(w) for w in current_bin_words]
 
                 sim_model = numpy.array([[1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in current_bin_words] for k in current_bin_words]).flatten()
@@ -49,12 +58,14 @@ def bins_rsa_test(dataset, all_data, out_file, model):
                     iter_results.append(corr)
                 bin_results.append(iter_results)
             bin_results = numpy.average(bin_results, axis=0)
+            #print(bin_results)
             bins['{}_{}'.format(case, counter)] = bin_results
             counter += 1
 
     with open(out_file, 'w') as o:
         o.write('bin\tresults\n')
         for k, v in bins.items():
+            assert len(v) == data[current_bin_words[0]].shape[0]
             o.write('{}\t'.format(k))
             for val in v:
                 o.write('{}\t'.format(val))
@@ -81,15 +92,15 @@ file_path = os.path.join(
 assert os.path.exists(file_path)
 relevant_keys = [
                  'Auditory.mean',
-                 #'Gustatory.mean',
-                 #'Haptic.mean',
-                 #'Olfactory.mean',
-                 #'Visual.mean',
-                 #'Foot_leg.mean',
-                 #'Hand_arm.mean', 
-                 #'Head.mean', 
-                 #'Mouth.mean', 
-                 #'Torso.mean'
+                 'Gustatory.mean',
+                 'Haptic.mean',
+                 'Olfactory.mean',
+                 'Visual.mean',
+                 'Foot_leg.mean',
+                 'Hand_arm.mean', 
+                 'Head.mean', 
+                 'Mouth.mean', 
+                 'Torso.mean'
                  ]
 overall_keys.extend(relevant_keys)
 
@@ -202,9 +213,7 @@ for dataset, data in datasets.items():
                                    args.language,
                                    )
                             )
-    if not os.path.exists(undamaged_file):
-        #ridge_test(dataset, data, undamaged_file, model)
-        bins_rsa_test(dataset, data, undamaged_file, model)
+    bins_rsa_test(dataset, data, undamaged_file, model)
 
 for dataset, data in datasets.items():
 
@@ -301,5 +310,4 @@ for dataset, data in datasets.items():
                                      setup_info,
                                      )
                                      )
-                    #ridge_test(dataset, data, out_file, model)
                     bins_rsa_test(dataset, data, out_file, model)
