@@ -86,22 +86,20 @@ for damage in damages:
                     continue
                 line = l.strip().split('\t')
                 undam_results.append(numpy.array(line[1:], dtype=numpy.float32))
-        import pdb; pdb.set_trace()
         diff = scipy.stats.ttest_rel(
                                     numpy.average(dam_results, axis=0), 
                                     numpy.average(undam_results, axis=0), 
                                     alternative='less'
                                     #alternative='greater'
                                     )
-        #diff = scipy.stats.wilcoxon(damaged[high_auditory, :].flatten(), undamaged[high_auditory, :].flatten(), alternative='less')
         print(damage)
         print(dataset)
         print(diff)
         ### plotting
         fig, ax = pyplot.subplots(constrained_layout=True)
         mod_xs = list(range(5))
-        mod_dam_ys = numpy.average(dam_results, axis=0)
-        mod_undam_ys = numpy.average(undam_results, axis=0)
+        mod_dam_ys = numpy.average(dam_results, axis=1)
+        mod_undam_ys = numpy.average(undam_results, axis=1)
         ax.plot(mod_xs, mod_dam_ys, color='orange', label='damaged auditory')
         ax.plot(mod_xs, mod_undam_ys, color='grey', ls='-.', label='undamaged')
         ax.set_xlim(left=0., right=5.)
