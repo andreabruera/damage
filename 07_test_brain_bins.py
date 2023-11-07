@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from utils import prepare_input_output_folders, read_args
 
-def rsa_test(dataset, all_data, out_file, model):
+def bins_rsa_test(dataset, all_data, out_file, model):
     dataset_results = dict()
 
     all_words = relevant_dataset_words[dataset]
@@ -28,74 +28,33 @@ def rsa_test(dataset, all_data, out_file, model):
     missing_words = [w for w in all_words if w not in model.vocab]
     print('missing {} words'.format(len(missing_words)))
     words = [w for w in all_words if w in model.vocab]
-    sim_model = {k : [1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in words] for k in words}
-    data = {k : [[val for val, w in zip(vec, all_words) if w not in missing_words] for vec in v] for k, v in all_data.items() if k in words}
+    bins = {'{}_{}'.format(case.split('.')[0], i) : list() for i in range(5) for case in relevant_keys}
+    counter = 0
 
-    ### leave-one-out
-    for test_i, test_item in tqdm(enumerate(words)):
-        item_results = list()
-        training_input = [model[w] for w in words if w!=test_item]
-        test_input = model[test_item]
-        training_input = [numpy.delete(sim_model[w], test_i, axis=0) for w in words if w!=test_item]
-        test_input = numpy.delete(sim_model[test_item], test_i, axis=0)
-        all_training_target = [numpy.delete(data[w], test_i, axis=1) for w in words if w!=test_item]
-        all_test_target = numpy.delete(data[test_item], test_i, axis=1)
-        all_ranking_targets = [numpy.delete(data[w], test_i, axis=1) for w in words]
-        for s in range(all_test_target.shape[0]):
-            training_target = [brain[s, :] for brain in all_training_target]
-            test_target = all_test_target[s, :]
-            corr = scipy.stats.pearsonr(test_input, test_target)[0]
-            item_results.append(corr)
-        dataset_results[test_item] = item_results
+    for case_i, case in enumerate(relevant_keys):
+        case = case.split('.')[0]
+        for beg, end in tqdm([(0., 1.), (1, 2), (2, 3), (3, 4), (4, 5)]):
+            bin_words = [w for w in words if norms[w][case_i]>=beg and norms[w][case_i]<=end]
+            bin_results = list()
+            for _ in range(10):
+                iter_results = list()
+                current_bin_words = random.sample(bin_words, k=32)
+                current_bin_idxs = [all_words.index(w) for w in current_bin_words]
 
-    with open(out_file, 'w') as o:
-        o.write('word\tresults\n')
-        for k, v in dataset_results.items():
-            o.write('{}\t'.format(k))
-            for val in v:
-                o.write('{}\t'.format(val))
-            o.write('\n')
-
-def ridge_test(dataset, data, out_file, model):
-    dataset_results = dict()
-
-    words = relevant_dataset_words[dataset]
-
-    for w in words:
-        assert w in model.vocab
-
-    all_vectors = {w : model[w] for w in words}
-    for vec in all_vectors.values():
-        assert vec.shape == (300, )
-
-    ### leave-one-out
-    for test_i, test_item in tqdm(enumerate(words)):
-        item_results = list()
-        training_input = [all_vectors[w] for w in words if w!=test_item]
-        test_input = all_vectors[test_item]
-        all_training_target = [numpy.delete(data[w], test_i, axis=1) for w in words if w!=test_item]
-        all_test_target = numpy.delete(data[w], test_i, axis=1)
-        all_ranking_targets = [numpy.delete(data[w], test_i, axis=1) for w in words]
-        for s in range(all_test_target.shape[0]):
-            training_target = [brain[s, :] for brain in all_training_target]
-            test_target = all_test_target[s, :]
-            ranking_targets = [brain[s, :] for brain in all_ranking_targets]
-            ridge = sklearn.linear_model.RidgeCV(alphas=(0.01, 0.1, 1, 10, 100, 1000, 10000))
-            ridge.fit(training_input, training_target)
-            prediction = ridge.predict([test_input])
-            if prediction.shape[0] == 1:
-                prediction = prediction[0]
-            ### ranking
-            corrs = [(real_w, scipy.stats.pearsonr(prediction, real)[0]) for real_w, real in zip(words, ranking_targets)]
-            sorted_corrs = sorted(corrs, key=lambda item : item[1], reverse=True)
-            sorted_words = [w[0] for w in sorted_corrs]
-            rank = 1 - (sorted_words.index(test_item) / len(words))
-            item_results.append(rank)
-        dataset_results[test_item] = item_results
+                sim_model = numpy.array([[1 - scipy.spatial.distance.cosine(model[k], model[k_two]) for k_two in current_bin_words] for k in current_bin_words]).flatten()
+                data = {k : numpy.array([[vec[i] for i in current_bin_idxs] for vec in v]) for k, v in all_data.items() if k in current_bin_words}
+                for s in range(data[current_bin_words[0]].shape[0]):
+                    brain = numpy.array([data[w][s, :] for w in current_bin_words]).flatten()
+                    corr = scipy.stats.pearsonr(sim_model, brain)[0]
+                    iter_results.append(corr)
+                bin_results.append(iter_results)
+            bin_results = numpy.average(bin_results, axis=0)
+            bins['{}_{}'.format(case, counter)] = bin_results
+            counter += 1
 
     with open(out_file, 'w') as o:
-        o.write('word\tresults\n')
-        for k, v in dataset_results.items():
+        o.write('bin\tresults\n')
+        for k, v in bins.items():
             o.write('{}\t'.format(k))
             for val in v:
                 o.write('{}\t'.format(val))
@@ -122,15 +81,15 @@ file_path = os.path.join(
 assert os.path.exists(file_path)
 relevant_keys = [
                  'Auditory.mean',
-                 'Gustatory.mean',
-                 'Haptic.mean',
-                 'Olfactory.mean',
-                 'Visual.mean',
-                 'Foot_leg.mean',
-                 'Hand_arm.mean', 
-                 'Head.mean', 
-                 'Mouth.mean', 
-                 'Torso.mean'
+                 #'Gustatory.mean',
+                 #'Haptic.mean',
+                 #'Olfactory.mean',
+                 #'Visual.mean',
+                 #'Foot_leg.mean',
+                 #'Hand_arm.mean', 
+                 #'Head.mean', 
+                 #'Mouth.mean', 
+                 #'Torso.mean'
                  ]
 overall_keys.extend(relevant_keys)
 
@@ -235,12 +194,9 @@ if args.model == 'w2v':
 
 ### checking words are all in the vocabulary
 for dataset, data in datasets.items():
-    for beg, end in [(0., 1.), (1, 2), (2, 3), (3, 4), (4, 5)]:
-        va = len([w for w in data.keys() if norms[w][0]>=beg and norms[w][0]<=end])
-        print([beg, end, va])
     undamaged_file = os.path.join(
                             'brain_results', 
-                            'rsa_{}_undamaged_{}_{}.results'.format(
+                            'bins_rsa_{}_undamaged_{}_{}.results'.format(
                                    dataset, 
                                    args.model, 
                                    args.language,
@@ -248,7 +204,7 @@ for dataset, data in datasets.items():
                             )
     if not os.path.exists(undamaged_file):
         #ridge_test(dataset, data, undamaged_file, model)
-        rsa_test(dataset, data, undamaged_file, model)
+        bins_rsa_test(dataset, data, undamaged_file, model)
 
 for dataset, data in datasets.items():
 
@@ -256,9 +212,9 @@ for dataset, data in datasets.items():
 
     relu_bases=[
              #'50', 
-             '75', 
+             #'75', 
              #'90',
-             #'95',
+             '95',
              ] 
     sampling=[
              'random', 
@@ -274,7 +230,7 @@ for dataset, data in datasets.items():
              #'relu-raw-thresholded85', 
              #'relu-raw-thresholded95', 
              'relu-raw', 
-             'relu-exponential', 
+             #'relu-exponential', 
              #'logarithmic', 
              #'relu-logarithmic', 
              #'relu-sigmoid', 
@@ -338,7 +294,7 @@ for dataset, data in datasets.items():
                                                         ).wv
                     out_file = os.path.join(
                                      'brain_results', 
-                                     'rsa_{}_{}_{}_{}.results'.format(
+                                     'bins_rsa_{}_{}_{}_{}.results'.format(
                                      dataset,
                                      args.model, 
                                      args.language, 
@@ -346,4 +302,4 @@ for dataset, data in datasets.items():
                                      )
                                      )
                     #ridge_test(dataset, data, out_file, model)
-                    rsa_test(dataset, data, out_file, model)
+                    bins_rsa_test(dataset, data, out_file, model)
