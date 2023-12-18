@@ -69,6 +69,15 @@ for row in tqdm(range(total_rows)):
     rts[sub][task][cond][cat].append(rt)
     fluencies[sub][task][cond][cat].append(word)
 
+### metrics vs difficulty
+difficulties = dict()
+with open(os.path.join(base, 'data', 'category_ranking.tsv')) as i:
+    for l_i, l in enumerate(i):
+        if l_i==0:
+            continue
+        line = l.strip().split('\t')
+        difficulties[line[0]] = float(line[2])
+
 ft_folder = os.path.join('/', 'import', 'cogsci', 'andrea', 'dataset', 'word_vectors', 'de', 'ready_for_fasttext')
 undamaged_ft_file = os.path.join(ft_folder, 'undamaged_wac_subs_for_fasttext.bin')
 undamaged_ft = fasttext.load_model(undamaged_ft_file)
@@ -81,6 +90,7 @@ with tqdm() as counter:
         damaged_ft = fasttext.load_model(damaged_ft_file)
         corr_cat = transform_german_word(cat)
         corr_cat = set([w for w in corr_cat])
+        #corr_cat = [cat]
         cat_vec = dict()
         cat_vec['damaged'] = numpy.average([damaged_ft.get_word_vector(w) for w in corr_cat], axis=0)
         cat_vec['undamaged'] = numpy.average([undamaged_ft.get_word_vector(w) for w in corr_cat], axis=0)
@@ -99,6 +109,7 @@ with tqdm() as counter:
                     for word in data:
                         corr_word = transform_german_word(word)
                         corr_toks = set([w for c_w in corr_word for w in c_w.split()])
+                        #corr_toks = [word]
                         for ft_type, ft in [('damaged', damaged_ft), ('undamaged', undamaged_ft)]:
                             corr_vec = numpy.average([ft.get_word_vector(w) for w in corr_toks], axis=0)
                             sim = 1 - scipy.spatial.distance.cosine(corr_vec, cat_vec[ft_type])
