@@ -1,0 +1,34 @@
+average similarities between damaged model and words produced
+
+['damaged', 'dual', 0.4404]
+['damaged', 'sham', 0.4385]
+['damaged', 'IFG', 0.438]
+['damaged', 'preSMA', 0.4309]
+
+p-values of difference between conditions for damaged model and words produced
+
+['dual', 'sham', 0.58374]
+['dual', 'IFG', 0.48838]
+['dual', 'preSMA', 0.00652]
+['sham', 'IFG', 0.87629]
+['sham', 'preSMA', 0.02664]
+['IFG', 'preSMA', 0.04228]
+
+
+average similarities between undamaged model and words produced
+
+['undamaged', 'dual', 0.4639]
+['undamaged', 'sham', 0.4616]
+['undamaged', 'IFG', 0.4604]
+['undamaged', 'preSMA', 0.4526]
+
+p-values of difference between conditions for undamaged model and words produced
+
+['dual', 'sham', 0.52445]
+['dual', 'IFG', 0.34076]
+['dual', 'preSMA', 0.00217]
+['sham', 'IFG', 0.73629]
+['sham', 'preSMA', 0.01295]
+['IFG', 'preSMA', 0.03584]
+
+

@@ -121,9 +121,10 @@ for c in corpora:
 with open(os.path.join('pickles', 'cn_sims.pkl'), 'rb') as i:
     all_sims = pickle.load(i)
 
+pruning = 0.01
 ### pruning
 all_sims = {k : {w.replace('_', '') : val for w, val in v.items() if w.replace('_', '') not in stopwords} for k, v in all_sims.items()}
-all_sims = {k : {w : prob for w, prob in sorted(v.items(), key=lambda item : item[1], reverse=True)[:int(len(v.values())*0.01)]} for k, v in all_sims.items()}
+all_sims = {k : {w : prob for w, prob in sorted(v.items(), key=lambda item : item[1], reverse=True)[:int(len(v.values())*pruning)]} for k, v in all_sims.items()}
 mins = {k : min(v.values()) for k, v in all_sims.items()}
 maxs = {k : max(v.values()) for k, v in all_sims.items()}
 ### rescaling between 0.5-0.75
@@ -145,7 +146,16 @@ for case, scores in full_sims.items():
             pool.terminate()
             pool.join()
 
-    out_folder = os.path.join('/', 'import', 'cogsci', 'andrea', 'dataset', 'corpora', 'de', 'ready_for_fasttext')
+    out_folder = os.path.join(
+                              '/', 
+                              'import', 
+                              'cogsci', 
+                              'andrea', 
+                              'dataset', 
+                              'corpora', 
+                              'de', 
+                              'ready_for_fasttext_{}'.format(pruning),
+                              )
     os.makedirs(out_folder, exist_ok=True)
 
     out_file = os.path.join(out_folder, '{}_wac_subs_for_fasttext.txt'.format(case))

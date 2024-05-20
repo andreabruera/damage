@@ -1,8 +1,8 @@
-models/
-predictions/
-fernandino_brain_data/
-brain_results/
-pickles/
+*/models/
+*/predictions/
+*/fernandino_brain_data/
+*/brain_results/
+*/pickles/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

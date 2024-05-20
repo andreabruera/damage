@@ -69,16 +69,20 @@ for row in tqdm(range(total_rows)):
     rts[sub][task][cond][cat].append(rt)
     fluencies[sub][task][cond][cat].append(word)
 
-### metrics vs difficulty
-difficulties = dict()
-with open(os.path.join(base, 'data', 'category_ranking.tsv')) as i:
-    for l_i, l in enumerate(i):
-        if l_i==0:
-            continue
-        line = l.strip().split('\t')
-        difficulties[line[0]] = float(line[2])
-
-ft_folder = os.path.join('/', 'import', 'cogsci', 'andrea', 'dataset', 'word_vectors', 'de', 'ready_for_fasttext')
+pruning = 0.01
+min_words = 10
+folder = os.path.join(
+                      '/', 
+                      'import', 
+                      'cogsci', 
+                      'andrea',
+                      'dataset', 
+                      'corpora', 
+                      'de', 
+                      'ready_for_fasttext_{}'.format(pruning),
+                      )
+out_folder = folder.replace('corpora', 'word_vectors')
+out_folder = out_folder.replace('_{}'.format(pruning), '_{}_{}'.format(pruning, min_words))
 undamaged_ft_file = os.path.join(ft_folder, 'undamaged_wac_subs_for_fasttext.bin')
 undamaged_ft = fasttext.load_model(undamaged_ft_file)
 with tqdm() as counter:
@@ -90,7 +94,6 @@ with tqdm() as counter:
         damaged_ft = fasttext.load_model(damaged_ft_file)
         corr_cat = transform_german_word(cat)
         corr_cat = set([w for w in corr_cat])
-        #corr_cat = [cat]
         cat_vec = dict()
         cat_vec['damaged'] = numpy.average([damaged_ft.get_word_vector(w) for w in corr_cat], axis=0)
         cat_vec['undamaged'] = numpy.average([undamaged_ft.get_word_vector(w) for w in corr_cat], axis=0)
@@ -100,26 +103,25 @@ with tqdm() as counter:
                 if 'sem' not in task:
                     continue
                 #print(task)
+                training_input = {'damaged' : dict(), 'undamaged' : dict()}
+                training_target = {'damaged' : dict(), 'undamaged' : dict()}
+                test_input = dict()
+                test_target = dict()
                 for cond, cond_data in task_data.items():
-                    if cat not in cond_data.keys():
-                        continue
-                    data = cond_data[cat]
-                    cat_results = {'damaged' : list(), 'undamaged' : list()}
-
-                    for word in data:
-                        corr_word = transform_german_word(word)
-                        corr_toks = set([w for c_w in corr_word for w in c_w.split()])
-                        #corr_toks = [word]
-                        for ft_type, ft in [('damaged', damaged_ft), ('undamaged', undamaged_ft)]:
-                            corr_vec = numpy.average([ft.get_word_vector(w) for w in corr_toks], axis=0)
-                            sim = 1 - scipy.spatial.distance.cosine(corr_vec, cat_vec[ft_type])
-                            cat_results[ft_type].append(sim)
-                    if cat not in sim_results[cond].keys():
-                        sim_results[cond][cat] = cat_results
-                    else:
-                        for k, v in cat_results.items():
-                            sim_results[cond][cat][k].extend(v)
-                            counter.update(1)
+                    for current_cat, data in cond_data.items():
+                        for word in data:
+                            corr_word = transform_german_word(word)
+                            corr_toks = set([w for c_w in corr_word for w in c_w.split()])
+                            for ft_type, ft in [('damaged', damaged_ft), ('undamaged', undamaged_ft)]:
+                                corr_vec = numpy.average([ft.get_word_vector(w) for w in corr_toks], axis=0)
+                                sim = 1 - scipy.spatial.distance.cosine(corr_vec, cat_vec[ft_type])
+                                cat_results[ft_type].append(sim)
+                        if cat not in sim_results[cond].keys():
+                            sim_results[cond][cat] = cat_results
+                        else:
+                            for k, v in cat_results.items():
+                                sim_results[cond][cat][k].extend(v)
+                                counter.update(1)
 
 with open('TMS_sims_results.txt', 'w') as o:
     for typ in ['damaged', 'undamaged']:
